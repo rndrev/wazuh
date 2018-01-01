@@ -61,9 +61,12 @@ typedef struct _logreader_config {
 } logreader_config;
 
 /* Frees the Localfile struct  */
-void Free_Localfile(logreader_config * config);
+void Free_Localfile(logreader * logf);
+
+/* Frees the Localfile array  */
+void Free_Localfile_Array(logreader_config * config);
 
 /* Removes a specific localfile */
-int Remove_Localfile(logreader **logf, int i);
+int Remove_Localfile(logreader **logf, int i, int gl, int fr);
 
 #endif /* __CLOGREADER_H */

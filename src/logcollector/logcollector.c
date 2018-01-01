@@ -89,23 +89,37 @@ void LogCollectorStart()
         }
 
         /* Remove duplicate entries */
-        for (r = 0;; r++) {
-            if (f_control = update_current(&dup, &r, &k), f_control) {
-                if (f_control == NEXT_IT) {
-                    continue;
-                } else {
+        if (current->file) {
+            int d_control = CONTINUE_IT;
+            for (r = 0;; r++) {
+                if (f_control = update_current(&dup, &r, &k), f_control) {
+                    if (f_control == NEXT_IT) {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+
+                if (current != dup && dup->file && strcmp(current->file, dup->file) == 0) {
+                    mwarn(DUP_FILE, current->file);
+                    int result;
+                    if (j < 0) {
+                        result = Remove_Localfile(&logff, i, 0, 1);
+                    } else {
+                        result = Remove_Localfile(&(globs[j].gfiles), i, 1, 0);
+                    }
+                    if (result) {
+                        merror_exit(REM_ERROR, current->file);
+                    } else {
+                        current_files--;
+                    }
+                    d_control = NEXT_IT;
                     break;
                 }
             }
-
-            if (current != dup && strcmp(current->file, dup->file) == 0) {
-                mwarn(DUP_FILE, current->file);
-                if (Remove_Localfile( j < 0 ? &logff: &(globs[j].gfiles), i)) {
-                    merror(REM_ERROR, current->file);
-                } else {
-                    current_files--;
-                }
-                break;
+            if (d_control) {
+                i--;
+                continue;
             }
         }
         k = -1;
@@ -200,6 +214,13 @@ void LogCollectorStart()
         }
     }
 
+    /* Update number of files */
+    for (r=0; logff[r].logformat; r++) {
+        if (!logff[r].file && !logff[r].ffile) {
+            current_files--;
+        }
+    }
+
     /* Start up message */
     minfo(STARTUP_MSG, (int)getpid());
 
@@ -252,7 +273,6 @@ void LogCollectorStart()
                 }
                 continue;
             }
-
             /* Windows with IIS logs is very strange.
              * For some reason it always returns 0 (not EOF)
              * the fgetc. To solve this problem, we always
@@ -387,9 +407,9 @@ void LogCollectorStart()
                     if (errno == ENOENT) {
                         minfo(REM_FILE, current->file);
                         if (j >= 0) {
-                            if (Remove_Localfile(&(globs[j].gfiles), i))
+                            if (Remove_Localfile(&(globs[j].gfiles), i, 1, 0)) {
                                 merror(REM_ERROR, current->file);
-                            else {
+                            } else {
                                 current_files--;
                                 i--;
                                 continue;
@@ -797,7 +817,7 @@ int update_current(logreader **current, int *i, int *j)
     if (*j < 0) {
         /* Check for normal files */
         *current = &logff[*i];
-        if(!(*current)->file) {
+        if(!(*current)->logformat) {
             if (globs && globs->gfiles) {
                 *i = -1;
                 *j = 0;
@@ -819,7 +839,6 @@ int update_current(logreader **current, int *i, int *j)
             }
         }
     }
-
     return CONTINUE_IT;
 }
 

@@ -260,6 +260,31 @@ int Read_Localfile(XML_NODE node, void *d1, __attribute__((unused)) void *d2)
 
     current_files++;
 
+    /* Missing log format */
+    if (!logf[pl].logformat) {
+        merror(MISS_LOG_FORMAT);
+        return (OS_INVALID);
+    }
+
+    /* Verify a valid event log config */
+    if (strcmp(logf[pl].logformat, EVENTLOG) == 0) {
+        if ((strcmp(logf[pl].file, "Application") != 0) &&
+                (strcmp(logf[pl].file, "System") != 0) &&
+                (strcmp(logf[pl].file, "Security") != 0)) {
+            /* Invalid event log */
+            minfo(NSTD_EVTLOG, logf[pl].file);
+            return (0);
+        }
+    }
+
+    if ((strcmp(logf[pl].logformat, "command") == 0) ||
+            (strcmp(logf[pl].logformat, "full_command") == 0)) {
+        if (!logf[pl].command) {
+            merror("Missing 'command' argument. "
+                   "This option will be ignored.");
+        }
+    }
+
     if (!logf[pl].command) {
         /* Validate glob entries */
 #ifndef WIN32
@@ -355,15 +380,16 @@ int Read_Localfile(XML_NODE node, void *d1, __attribute__((unused)) void *d2)
             }
 
             globfree(&g);
-            if (Remove_Localfile(&logf, pl)) {
+            if (Remove_Localfile(&logf, pl, 0, 0)) {
                 merror(REM_ERROR, logf[pl].file);
                 return (OS_INVALID);
             }
             log_config->config = logf;
+            return 0;
         } else if (strchr(logf[pl].file, '%'))
 #else
         if (strchr(logf[pl].file, '%'))
-#endif /* WIN32 */
+#endif  /* WIN32 */
         /* We need the format file (based on date) */
         {
             struct tm *p;
@@ -377,49 +403,13 @@ int Read_Localfile(XML_NODE node, void *d1, __attribute__((unused)) void *d2)
             if (ret != 0) {
                 os_strdup(logf[pl].file, logf[pl].ffile);
             }
-
-            os_strdup(logf[pl].file, logf[pl].file);
         }
-    }
-    /* Missing log format */
-    if (!logf[pl].logformat) {
-        merror(MISS_LOG_FORMAT);
-        return (OS_INVALID);
     }
 
     /* Missing file */
     if (!logf[pl].file) {
-        int ex_files = 0;
-        for (i=0; log_config->globs[i].gfiles ; i++) {
-            if (log_config->globs[i].gfiles != NULL) {
-                ex_files = 1;
-                break;
-            }
-        }
-
-        if (!ex_files) {
-            merror(MISS_FILE);
-            return (OS_INVALID);
-        }
-    }
-
-    /* Verify a valid event log config */
-    if (strcmp(logf[pl].logformat, EVENTLOG) == 0) {
-        if ((strcmp(logf[pl].file, "Application") != 0) &&
-                (strcmp(logf[pl].file, "System") != 0) &&
-                (strcmp(logf[pl].file, "Security") != 0)) {
-            /* Invalid event log */
-            minfo(NSTD_EVTLOG, logf[pl].file);
-            return (0);
-        }
-    }
-
-    if ((strcmp(logf[pl].logformat, "command") == 0) ||
-            (strcmp(logf[pl].logformat, "full_command") == 0)) {
-        if (!logf[pl].command) {
-            merror("Missing 'command' argument. "
-                   "This option will be ignored.");
-        }
+        merror(MISS_FILE);
+        return (OS_INVALID);
     }
 
     return (0);
@@ -434,7 +424,7 @@ int Test_Localfile(const char * path){
 		fail = 1;
 	}
 
-    Free_Localfile(&test_localfile);
+    Free_Localfile_Array(&test_localfile);
 
     if (fail) {
         return -1;
@@ -443,20 +433,13 @@ int Test_Localfile(const char * path){
     }
 }
 
-void Free_Localfile(logreader_config * config){
+void Free_Localfile_Array(logreader_config * config){
     if (config) {
         if (config->config) {
             int i;
 
             for (i = 0; config->config[i].file; i++) {
-                free(config->config[i].ffile);
-                free(config->config[i].file);
-                free(config->config[i].logformat);
-                free(config->config[i].djb_program_name);
-                free(config->config[i].alias);
-                free(config->config[i].query);
-                labels_free(config->config[i].labels);
-                free(config->config[i].fp);
+                Free_Localfile(&config->config[i]);
             }
 
             free(config->config);
@@ -464,19 +447,36 @@ void Free_Localfile(logreader_config * config){
     }
 }
 
-int Remove_Localfile(logreader **logf, int i) {
+void Free_Localfile(logreader * logf) {
+    free(logf->ffile);
+    free(logf->file);
+    free(logf->logformat);
+    free(logf->djb_program_name);
+    free(logf->alias);
+    free(logf->query);
+    labels_free(logf->labels);
+    free(logf->fp);
+}
+
+int Remove_Localfile(logreader **logf, int i, int gl, int fr) {
     if (*logf) {
         int size = 0;
-        while ((*logf)[size].file) {
+        while ((*logf)[size].file || (!gl && (*logf)[size].logformat)) {
             size++;
         }
         if (i < size) {
-            free((*logf)[i].file);
+            if (fr) {
+                Free_Localfile(&(*logf)[i]);
+            } else {
+                free((*logf)[i].file);
+            }
             if (i != size -1) {
                 memcpy(&(*logf)[i], &(*logf)[size - 1], sizeof(logreader));
             }
             (*logf)[size - 1].file = NULL;
+            (*logf)[size - 1].ffile = NULL;
             (*logf)[size - 1].command = NULL;
+            (*logf)[size - 1].logformat = NULL;
             if (!size)
                 size = 1;
             os_realloc(*logf, size*sizeof(logreader), *logf);
