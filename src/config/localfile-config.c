@@ -455,7 +455,9 @@ void Free_Localfile(logreader * logf) {
     free(logf->alias);
     free(logf->query);
     labels_free(logf->labels);
-    free(logf->fp);
+    if(logf->fp) {
+        fclose(logf->fp);
+    }
 }
 
 int Remove_Localfile(logreader **logf, int i, int gl, int fr) {
@@ -469,6 +471,9 @@ int Remove_Localfile(logreader **logf, int i, int gl, int fr) {
                 Free_Localfile(&(*logf)[i]);
             } else {
                 free((*logf)[i].file);
+                if((*logf)[i].fp) {
+                    fclose((*logf)[i].fp);
+                }
             }
             if (i != size -1) {
                 memcpy(&(*logf)[i], &(*logf)[size - 1], sizeof(logreader));
@@ -477,6 +482,8 @@ int Remove_Localfile(logreader **logf, int i, int gl, int fr) {
             (*logf)[size - 1].ffile = NULL;
             (*logf)[size - 1].command = NULL;
             (*logf)[size - 1].logformat = NULL;
+            (*logf)[size - 1].fp = NULL;
+
             if (!size)
                 size = 1;
             os_realloc(*logf, size*sizeof(logreader), *logf);
