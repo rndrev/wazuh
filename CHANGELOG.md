@@ -34,6 +34,7 @@ All notable changes to this project will be documented in this file.
     - Up to 16 parallel threads to decrypt messages from agents.
     - Limit the frequency of agent keys reloading.
     - Message input buffer in Analysisd to prevent control messages starvation in Remoted.
+- Add statistical functions to remoted. ([#682](https://github.com/wazuh/wazuh/pull/682))
 
 ### Changed
 
