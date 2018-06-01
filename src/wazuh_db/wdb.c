@@ -45,7 +45,10 @@ static const char * SQL_STMT[] = {
     "INSERT INTO sys_netaddr (id, scan_id, proto, address, netmask, broadcast) VALUES (?, ?, ?, ?, ?, ?);",
     "DELETE FROM sys_netiface WHERE scan_id != ?;",
     "DELETE FROM sys_netproto WHERE scan_id != ?;",
-    "DELETE FROM sys_netaddr WHERE scan_id != ?;"
+    "DELETE FROM sys_netaddr WHERE scan_id != ?;",
+    "SELECT 1 FROM pm_event WHERE log = ?;",
+    "UPDATE pm_event SET date_last = datetime(?, 'unixepoch', 'localtime') WHERE log = ?;",
+    "INSERT INTO pm_event (date_first, date_last, log, pci_dss, cis) VALUES (datetime(?, 'unixepoch', 'localtime'), datetime(?, 'unixepoch', 'localtime'), ?, ?, ?);"
 };
 
 sqlite3 *wdb_global = NULL;
