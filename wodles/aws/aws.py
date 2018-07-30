@@ -50,6 +50,14 @@ def send_msg(wazuh_queue, header, msg):
     s.send(formatted.encode())
     s.close()
 
+
+def decompress_file(file_name):
+    if file_name[-3:] == '.gz':
+        return gzip.open(file_name)
+    else:
+        return open(file_name)
+
+
 def load_information_from_file(file_name):
     """
     AWS logs are stored in different formats depending on the service:
@@ -67,7 +75,7 @@ def load_information_from_file(file_name):
             data = data[json_index:]
             yield json_data
 
-    with open(file_name) as f:
+    with decompress_file(file_name) as f:
         if '.json' in file_name:
             json_file = json.load(f)
             return None if 'Records' not in json_file else json_file['Records']
