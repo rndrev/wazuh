@@ -22,6 +22,7 @@ except ImportError:
 import botocore
 import gzip
 import json
+import csv
 
 # Enable/disable debug mode
 enable_debug = False
@@ -48,6 +49,36 @@ def send_msg(wazuh_queue, header, msg):
         sys.exit(1)
     s.send(formatted.encode())
     s.close()
+
+def load_information_from_file(file_name):
+    """
+    AWS logs are stored in different formats depending on the service:
+
+    * A JSON with an unique field "Records" which is an array of jsons. The filename has .json extension. (Cloudtrail)
+    * Multiple JSONs stored in the same line and with no separation. The filename has no extension. (GuardDuty, IAM, Macie, Inspector)
+    * TSV format. The filename has no extension. Has multiple lines. (VPC)
+
+    :param file_name: name of the log file
+    :return: list of events in json format.
+    """
+    def json_event_generator(data):
+        while data:
+            json_data, json_index = decoder.raw_decode(data)
+            data = data[json_index:]
+            yield json_data
+
+    with open(file_name) as f:
+        if '.json' in file_name:
+            json_file = json.load(f)
+            return None if 'Records' not in json_file else json_file['Records']
+        elif f.read(1) == '{':
+            decoder = json.JSONDecoder()
+            return [event for event in json_event_generator('{' + f.read())]
+        else:
+            fieldnames = ("version","account_id","interface_id","srcaddr","dstaddr","srcport","dstport","protocol","packets","bytes","start","end","action","log_status")
+            tsv_file = csv.DictReader(f, fieldnames=fieldnames, delimiter=' ')
+            return list(tsv_file)
+
 
 def handler(signal, frame):
     print "SIGINT received, bye!"
@@ -101,7 +132,7 @@ def main(argv):
     except sqlite3.OperationalError:
         db_connector.execute("create table log_progress  (log_name 'text' primary key, processed_date 'TEXT')")
 
-    
+
     # Connect to Amazon S3 Bucket
     debug('+++ Connecting to Amazon S3')
 
