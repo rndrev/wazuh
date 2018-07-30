@@ -53,6 +53,13 @@ typedef struct wmodule {
     struct wmodule *next;               // Pointer to next module
 } wmodule;
 
+// Verification type
+typedef enum crypto_type {
+    MD5SUM,
+    SHA1SUM,
+    SHA256SUM
+} crypto_type;
+
 // Inclusion of modules
 
 #include "wm_oscap.h"
@@ -137,5 +144,17 @@ int wm_sendmsg(int usec, int queue, const char *message, const char *locmsg, cha
 // Check if a path is relative or absolute.
 // Returns 0 if absolute, 1 if relative or -1 on error.
 int wm_relative_path(const char * path);
+
+// Get binary full path
+int wm_get_path(const char *binary, char **validated_comm);
+
+/**
+ Check the binary wich executes a commad has the specified hash.
+ Returns:
+     1 if the binary matchs with the specified digest, 0 if not.
+    -1 if the binary doesn't exist.
+    -2 invalid parameters.
+*/
+int wm_validate_command(const char *command, const char *digest, crypto_type ctype);
 
 #endif // W_MODULES
