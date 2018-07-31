@@ -21,6 +21,7 @@ except ImportError:
     sys.exit(4)
 import botocore
 import gzip
+import zipfile
 import json
 import csv
 
@@ -54,6 +55,9 @@ def send_msg(wazuh_queue, header, msg):
 def decompress_file(file_name):
     if file_name[-3:] == '.gz':
         return gzip.open(file_name)
+    elif file_name[-4:] == '.zip':
+        zipfile_object = zipfile.ZipFile(file_name)
+        return zipfile_object.open(zipfile_object.namelist()[0])
     else:
         return open(file_name)
 
