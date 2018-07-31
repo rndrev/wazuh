@@ -176,13 +176,12 @@ def main(argv):
                 continue
             debug("++ Found new log: {0}".format(downloaded_file))
             my_bucket.download_file(bucket_file.key,downloaded_file_path)
-            data = gzip.open(downloaded_file_path, 'rb')
 
-            # Format JSON for Wazuh ingestion
-            j = json.load(data)
-            if "Records" not in j:
+            j = load_information_from_file(downloaded_file_path)
+            if j is None:
                 continue
-            for json_event in j["Records"]:
+
+            for json_event in j:
                 aws_log = {}
                 for key in json_event:
                     if json_event[key]:
