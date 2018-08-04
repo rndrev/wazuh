@@ -63,64 +63,67 @@ void * wm_aws_main(wm_aws_t * config) {
     }
 
     while (1) {
-        int status;
-        char * output = NULL;
-        char *command = NULL;
-
-        // Create arguments
-
-        wm_strcat(&command, WM_AWS_SCRIPT_PATH, '\0');
-        wm_strcat(&command, "--bucket", ' ');
-        wm_strcat(&command, config->bucket, ' ');
-
-        if (config->remove_from_bucket) {
-            wm_strcat(&command, "--remove", ' ');
-        }
-        if (config->access_key) {
-            wm_strcat(&command, "--access_key", ' ');
-            wm_strcat(&command, config->access_key, ' ');
-        }
-        if (config->secret_key) {
-            wm_strcat(&command, "--secret_key", ' ');
-            wm_strcat(&command, config->secret_key, ' ');
-        }
-        if (wm_state_io(WM_AWS_CONTEXT.name, WM_IO_READ, &config->state, sizeof(config->state)) < 0) {
-            memset(&config->state, 0, sizeof(config->state));
-        }
-
-        mtinfo(WM_AWS_LOGTAG, "Fetching logs started");
-
+        wm_aws_bucket * cur_bucket = config->bucket;
         // Get time and execute
         time_start = time(NULL);
+        while (cur_bucket) {
+            int status;
+            char * output = NULL;
+            char *command = NULL;
 
-        switch (wm_exec(command, &output, &status, 0)) {
-        case 0:
-            if (status > 0) {
-                mtwarn(WM_AWS_LOGTAG, "Returned exit code %d.", status);
-                if(status == 3)
-                    mtwarn(WM_AWS_LOGTAG, "Invalid credentials to access S3 Bucket");
-                if(status == 4)
-                    mtwarn(WM_AWS_LOGTAG, "boto3 module is required.");
-                mtdebug2(WM_AWS_LOGTAG, "OUTPUT: %s", output);
+            // Create arguments
+
+            wm_strcat(&command, WM_AWS_SCRIPT_PATH, '\0');
+            wm_strcat(&command, "--bucket", ' ');
+            wm_strcat(&command, cur_bucket->name, ' ');
+
+            if (config->remove_from_bucket) {
+                wm_strcat(&command, "--remove", ' ');
+            }
+            if (config->access_key) {
+                wm_strcat(&command, "--access_key", ' ');
+                wm_strcat(&command, cur_bucket->access_key, ' ');
+            }
+            if (config->secret_key) {
+                wm_strcat(&command, "--secret_key", ' ');
+                wm_strcat(&command, cur_bucket->secret_key, ' ');
+            }
+            if (wm_state_io(WM_AWS_CONTEXT.name, WM_IO_READ, &config->state, sizeof(config->state)) < 0) {
+                memset(&config->state, 0, sizeof(config->state));
             }
 
-            break;
+            mtinfo(WM_AWS_LOGTAG, "Fetching logs started for bucket '%s'.", cur_bucket->name);
 
-        default:
-            mterror(WM_AWS_LOGTAG, "Internal calling. Exiting...");
-            pthread_exit(NULL);
+            switch (wm_exec(command, &output, &status, 0)) {
+                case 0:
+                if (status > 0) {
+                    mtwarn(WM_AWS_LOGTAG, "Returned exit code %d.", status);
+                    if(status == 3)
+                    mtwarn(WM_AWS_LOGTAG, "Invalid credentials to access S3 Bucket");
+                    if(status == 4)
+                    mtwarn(WM_AWS_LOGTAG, "boto3 module is required.");
+                    mtdebug2(WM_AWS_LOGTAG, "OUTPUT: %s", output);
+                }
+
+                break;
+
+                default:
+                mterror(WM_AWS_LOGTAG, "Internal calling. Exiting...");
+                pthread_exit(NULL);
+            }
+
+            char * line;
+
+            for (line = strtok(output, "\n"); line; line = strtok(NULL, "\n")){
+                wm_sendmsg(usec, config->queue_fd, line, WM_AWS_CONTEXT.name, LOCALFILE_MQ);
+            }
+
+            free(output);
+            free(command);
+
+            mtinfo(WM_AWS_LOGTAG, "Fetching logs finished for bucket '%s'.", cur_bucket->name);
+            cur_bucket = cur_bucket->next;
         }
-
-        char * line;
-
-        for (line = strtok(output, "\n"); line; line = strtok(NULL, "\n")){
-            wm_sendmsg(usec, config->queue_fd, line, WM_AWS_CONTEXT.name, LOCALFILE_MQ);
-        }
-
-        free(output);
-        free(command);
-
-        mtinfo(WM_AWS_LOGTAG, "Fetching logs finished.");
 
         if (config->interval) {
             time_sleep = time(NULL) - time_start;
