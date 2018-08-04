@@ -21,10 +21,12 @@ static const char *XML_REMOVE_FORM_BUCKET = "remove_from_bucket";
 
 // Parse XML
 
-int wm_aws_read(xml_node **nodes, wmodule *module, int agent_cfg)
+int wm_aws_read(const OS_XML *xml, xml_node **nodes, wmodule *module, int agent_cfg)
 {
     int i;
     wm_aws_t * config;
+    xml_node **children = NULL;
+    wm_aws_bucket * cur_bucket = NULL;
 
     if (!nodes) {
         mwarn("Tag <%s> not found at module '%s'.", XML_BUCKET, WM_AWS_CONTEXT.name);
@@ -101,24 +103,50 @@ int wm_aws_read(xml_node **nodes, wmodule *module, int agent_cfg)
                 merror("Invalid content for tag '%s' at module '%s'.", XML_REMOVE_FORM_BUCKET, WM_AWS_CONTEXT.name);
                 return OS_INVALID;
             }
-        } else if (!strcmp(nodes[i]->element, XML_ACCESS_KEY)) {
-            if (strlen(nodes[i]->content) != 0) {
-                free(config->access_key);
-                os_strdup(nodes[i]->content, config->access_key);
-            }
-        } else if (!strcmp(nodes[i]->element, XML_SECRET_KEY)) {
-            if (strlen(nodes[i]->content) != 0) {
-                free(config->secret_key);
-                os_strdup(nodes[i]->content, config->secret_key);
-            }
         } else if (!strcmp(nodes[i]->element, XML_BUCKET)) {
-            if (strlen(nodes[i]->content) == 0) {
-                merror("Empty content for tag '%s' at module '%s'.", XML_BUCKET, WM_AWS_CONTEXT.name);
+            // bucket name must be specified as tag attribute.
+            if (strlen(*nodes[i]->attributes) == 0 || strlen(*nodes[i]->values) == 0) {
+                merror("Empty content for name attribute '%s' at module '%s'.", XML_BUCKET, WM_AWS_CONTEXT.name);
+                return OS_INVALID;
+            } else if (strcmp(*nodes[i]->attributes, "name") != 0) {
+                merror("Wrong attribute name for '%s' at module '%s'. Expected: 'name'. Found: '%s'.", XML_BUCKET, WM_AWS_CONTEXT.name, *nodes[i]->attributes);
                 return OS_INVALID;
             }
 
-            free(config->bucket);
-            os_strdup(nodes[i]->content, config->bucket);
+            if (!(children = OS_GetElementsbyNode(xml, nodes[i]))) {
+                continue;
+            }
+
+            if (cur_bucket) {
+                os_calloc(1, sizeof(wm_aws_bucket), cur_bucket->next);
+                cur_bucket = cur_bucket->next;
+            } else {
+                os_calloc(1, sizeof(wm_aws_bucket), cur_bucket);
+                config->bucket = cur_bucket;
+            }
+
+            os_strdup(*nodes[i]->values, cur_bucket->name);
+
+            int j;
+            for (j=0; children[j]; j++) {
+                if (!strcmp(children[j]->element, XML_ACCESS_KEY)) {
+                    if (strlen(children[j]->content) != 0) {
+                        free(cur_bucket->access_key);
+                        os_strdup(children[j]->content, cur_bucket->access_key);
+                    }
+                } else if (!strcmp(children[j]->element, XML_SECRET_KEY)) {
+                    if (strlen(children[j]->content) != 0) {
+                        free(cur_bucket->secret_key);
+                        os_strdup(children[j]->content, cur_bucket->secret_key);
+                    }
+                } else {
+                    merror("No such tag '%s' at module '%s'.", children[j]->element, WM_AWS_CONTEXT.name);
+                    return OS_INVALID;
+                }
+            }
+
+            OS_ClearNode(children);
+
         } else {
             merror("No such tag '%s' at module '%s'.", nodes[i]->element, WM_AWS_CONTEXT.name);
             return OS_INVALID;

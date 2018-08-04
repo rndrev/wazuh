@@ -21,8 +21,15 @@ typedef struct wm_aws_state_t {
     time_t next_time;               // Absolute time for next scan
 } wm_aws_state_t;
 
+typedef struct wm_aws_bucket {
+    char * name;
+    char * access_key;
+    char * secret_key;
+    struct wm_aws_bucket * next;
+} wm_aws_bucket;
+
 typedef struct wm_aws_t {
-    char * bucket;
+    struct wm_aws_bucket * bucket;
     char * access_key;
     char * secret_key;
     unsigned long interval;
@@ -37,6 +44,6 @@ typedef struct wm_aws_t {
 extern const wm_context WM_AWS_CONTEXT;   // Context
 
 // Parse XML
-int wm_aws_read(xml_node **nodes, wmodule *module, int agent_cfg);
+int wm_aws_read(const OS_XML *xml, xml_node **nodes, wmodule *module, int agent_cfg);
 
 #endif // WM_AWS_H
