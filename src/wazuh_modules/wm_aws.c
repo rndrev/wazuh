@@ -80,11 +80,11 @@ void * wm_aws_main(wm_aws_t * config) {
             if (config->remove_from_bucket) {
                 wm_strcat(&command, "--remove", ' ');
             }
-            if (config->access_key) {
+            if (cur_bucket->access_key) {
                 wm_strcat(&command, "--access_key", ' ');
                 wm_strcat(&command, cur_bucket->access_key, ' ');
             }
-            if (config->secret_key) {
+            if (cur_bucket->secret_key) {
                 wm_strcat(&command, "--secret_key", ' ');
                 wm_strcat(&command, cur_bucket->secret_key, ' ');
             }
@@ -93,6 +93,7 @@ void * wm_aws_main(wm_aws_t * config) {
             }
 
             mtinfo(WM_AWS_LOGTAG, "Fetching logs started for bucket '%s'.", cur_bucket->name);
+            mtdebug2(WM_AWS_LOGTAG, "Command: %s", command);
 
             switch (wm_exec(command, &output, &status, 0)) {
                 case 0:

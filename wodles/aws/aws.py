@@ -148,7 +148,7 @@ def main(argv):
     # Connect to Amazon S3 Bucket
     debug('+++ Connecting to Amazon S3')
 
-    if options.access_key != None and options.secret_key != None:
+    if options.access_key is not None and options.secret_key is not None:
         s3 = boto3.resource(
             's3',
             aws_access_key_id=options.access_key,
