@@ -85,7 +85,7 @@ def load_information_from_file(file_name):
             return None if 'Records' not in json_file else json_file['Records']
         elif f.read(1) == '{':
             decoder = json.JSONDecoder()
-            return [event for event in json_event_generator('{' + f.read())]
+            return [event['detail'] for event in json_event_generator('{' + f.read()) if 'detail' in event]
         else:
             fieldnames = ("version","account_id","interface_id","srcaddr","dstaddr","srcport","dstport","protocol","packets","bytes","start","end","action","log_status")
             tsv_file = csv.DictReader(f, fieldnames=fieldnames, delimiter=' ')
