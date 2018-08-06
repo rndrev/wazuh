@@ -175,33 +175,38 @@ def main(argv):
                 debug("++ Skipping previously seen file {file}".format(file=downloaded_file))
                 continue
             debug("++ Found new log: {0}".format(downloaded_file))
-            my_bucket.download_file(bucket_file.key,downloaded_file_path)
-
-            j = load_information_from_file(downloaded_file_path)
-            if j is None:
-                continue
-
-            for json_event in j:
-                aws_log = {}
-                for key in json_event:
-                    if json_event[key]:
-                        aws_log[key] = json_event[key]
-                aws_log['log_file'] = downloaded_file
-                send_msg(wazuh_queue, header, aws_log)
-
-            # Remove temporal file
-            debug("+++ Removing temporal file: {0}".format(downloaded_file))
 
             try:
-                os.remove(downloaded_file_path)
-            except IOError as e:
-                print "ERROR: Cannot delete %s (%s)" % (downloaded_file_path, e.strerror)
+                my_bucket.download_file(bucket_file.key,downloaded_file_path)
 
-            # Remove file from S3 Bucket
-            if options.deleteFile:
-                debug("+++ Remove file from S3 Bucket:{0}".format(downloaded_file))
-                s3.Object(options.logBucket, bucket_file.key).delete()
-            mark_complete(downloaded_file, db_connector)
+                j = load_information_from_file(downloaded_file_path)
+                if j is None:
+                    continue
+
+                for json_event in j:
+                    aws_log = {}
+                    for key in json_event:
+                        if json_event[key]:
+                            aws_log[key] = json_event[key]
+                    aws_log['log_file'] = downloaded_file
+                    send_msg(wazuh_queue, header, aws_log)
+
+                # Remove temporal file
+                debug("+++ Removing temporal file: {0}".format(downloaded_file))
+
+                try:
+                    os.remove(downloaded_file_path)
+                except IOError as e:
+                    print "ERROR: Cannot delete %s (%s)" % (downloaded_file_path, e.strerror)
+
+                # Remove file from S3 Bucket
+                if options.deleteFile:
+                    debug("+++ Remove file from S3 Bucket:{0}".format(downloaded_file))
+                    s3.Object(options.logBucket, bucket_file.key).delete()
+                mark_complete(downloaded_file, db_connector)
+            except Exception as e:
+                print("ERROR: Error processing file {}: {}".format(downloaded_file_path, e))
+
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, handler)
