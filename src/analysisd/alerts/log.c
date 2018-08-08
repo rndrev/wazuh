@@ -238,7 +238,7 @@ void OS_LogOutput(Eventinfo *lf)
     if (lf->generated_rule->last_events) {
         char **lasts = lf->generated_rule->last_events;
         while (*lasts) {
-            printf("%.1256s\n", *lasts);
+            printf("%s\n", *lasts);
             lasts++;
         }
     }
@@ -388,7 +388,7 @@ void OS_Log(Eventinfo *lf)
     if (lf->generated_rule->last_events) {
         char **lasts = lf->generated_rule->last_events;
         while (*lasts) {
-            fprintf(_aflog, "%.1256s\n", *lasts);
+            fprintf(_aflog, "%s\n", *lasts);
             lasts++;
         }
     }
