@@ -38,6 +38,7 @@ All notable changes to this project will be documented in this file.
 - Get Windows hardware inventory natively. ([#831](https://github.com/wazuh/wazuh/pull/831))
 - Get processes and ports inventory by the Syscollector module.
 - Added an integration with Kaspersky Endpoint Security for Linux via Active Response. ([#1056](https://github.com/wazuh/wazuh/pull/1056))
+- Now rootcheck runs in parallel to syscheck. ([#991](https://github.com/wazuh/wazuh/pull/991))
 
 ### Changed
 
